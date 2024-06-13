@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prodygy - Logged In</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  <style>
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      background-color: #191d29;
+      color: #fff;
+      padding: 20px 0;
+    }
+    .header h1 {
+      font-size: 36px;
+      margin-bottom: 0;
+    }
+    .navbar-brand {
+      font-size: 24px;
+    }
+    .container {
+      margin-top: 50px;
+    }
+    .logout-button {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #dc3545;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+      text-decoration: none;
+    }
+    .logout-button i {
+      margin-right: 8px;
+    }
+    .audio-list {
+      margin-top: 40px;
+    }
+    .audio-card {
+      background-color: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: left;
+    }
+    .audio-card h3 {
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    .audio-card audio {
+      width: 100%;
+    }
+    .section-title {
+      margin-top: 40px;
+      font-size: 24px;
+      border-bottom: 2px solid #191d29;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .col-md-6 {
+      flex: 0 0 50%;
+      max-width: 50%;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+ 
+  <header class="header">
+    <div class="container text-center">
+      <h1>Bienvenido a Prodygy</h1>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="text-center">
+      <h2 id="username">Haz iniciado sesión como: [Username]</h2>
+      <button id="logout-btn" class="logout-button">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+      </button>
+    </div>
+    <div class="audio-list" id="user-uploaded-audios">
+      <h3 class="section-title">Audios subidos por ti</h3>
+      <div class="row" id="user-uploaded-audios-row"></div>
+    </div>
+    <div class="audio-list" id="downloaded-audios">
+      <h3 class="section-title">Audios descargados desde la app</h3>
+      <div class="row" id="downloaded-audios-row"></div>
+    </div>
+  </div>
+ 
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+  
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAbT6czBROqhkOz3YBiWZ-MOzYfv0ZK6bs",
+      authDomain: "prodauth1.firebaseapp.com",
+      projectId: "prodauth1",
+      storageBucket: "prodauth1.appspot.com",
+      messagingSenderId: "997151342472",
+      appId: "1:997151342472:web:be0de4969919f91fb3043d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        document.getElementById('username').textContent = `Haz iniciado sesión como: ${user.displayName}`;
+        await displayUserAudios(user.uid);
+        await displayDownloadedAudios(user.uid);
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+
+  
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      signOut(auth).then(() => {
+        window.location.href = 'index.html';
+      }).catch((error) => {
+        console.error('Sign Out Error', error);
+      });
+    });
+
+    
+    async function displayUserAudios(userId) {
+      const audioListElement = document.getElementById('user-uploaded-audios-row');
+      const q = query(collection(db, "audios"), where("userId", "==", userId));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const audioCard = document.createElement('div');
+        audioCard.classList.add('audio-card');
+        audioCard.innerHTML = `
+          <h3>${data.name}</h3>
+          <audio controls>
+            <source src="${data.audioUrl}" type="audio/mpeg">
+            Your browser does not support the audio element.
+          </audio>
+        `;
+        const col = document.createElement('div');
+        col.classList.add('col-md-6');
+        col.appendChild(audioCard);
+        audioListElement.appendChild(col);
+      });
+    }
+
+   
+    async function displayDownloadedAudios(userId) {
+      const downloadedAudioListElement = document.getElementById('downloaded-audios-row');
+      const q = query(collection(db, "downloads"), where("userId", "==", userId));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const audioCard = document.createElement('div');
+        audioCard.classList.add('audio-card');
+        audioCard.innerHTML = `
+          <h3>${data.name}</h3>
+          <audio controls>
+            <source src="${data.audioUrl}" type="audio/mpeg">
+            Your browser does not support the audio element.
+          </audio>
+        `;
+        const col = document.createElement('div');
+        col.classList.add('col-md-6');
+        col.appendChild(audioCard);
+        downloadedAudioListElement.appendChild(col);
+      });
+    }
+  </script>
+</body>
+</html>
